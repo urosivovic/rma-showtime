@@ -3,13 +3,14 @@ package rs.edu.raf.rma.showtime.feature.catalog
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import rs.edu.raf.rma.showtime.core.model.MoviesFilterState
-import rs.edu.raf.rma.showtime.core.model.toggleGenre
 import rs.edu.raf.rma.showtime.data.repository.MovieRepository
 
 class MoviesViewModel(
@@ -18,6 +19,9 @@ class MoviesViewModel(
 
     private val _state = MutableStateFlow(MoviesScreenState())
     val state: StateFlow<MoviesScreenState> = _state.asStateFlow()
+
+    private val _effects = MutableSharedFlow<MoviesEffect>()
+    val effects: SharedFlow<MoviesEffect> = _effects.asSharedFlow()
 
     private var loadMoviesJob: Job? = null
     private var loadGenresJob: Job? = null
@@ -37,80 +41,65 @@ class MoviesViewModel(
             }
 
             is MoviesIntent.SortSelected -> {
-                _state.update { current ->
-                    current.copy(selectedSort = intent.sortOption)
-                }
+                dispatch(MoviesAction.SortSelected(intent.sortOption))
                 loadMovies()
             }
 
-            MoviesIntent.StartEditingFilters -> {
-                _state.update { current ->
-                    current.copy(draftFilter = current.appliedFilter)
-                }
+            MoviesIntent.FilterClicked -> {
+                dispatch(MoviesAction.FiltersEditingStarted)
+                sendEffect(MoviesEffect.NavigateToFilters)
             }
 
-            MoviesIntent.DiscardDraftChanges -> {
-                _state.update { current ->
-                    current.copy(draftFilter = current.appliedFilter)
-                }
+            MoviesIntent.DiscardFiltersClicked -> {
+                dispatch(MoviesAction.DraftFiltersDiscarded)
+                sendEffect(MoviesEffect.CloseFilters)
             }
 
-            MoviesIntent.ClearDraftFilters -> {
-                _state.update { current ->
-                    current.copy(draftFilter = MoviesFilterState())
-                }
+            MoviesIntent.ClearDraftFiltersClicked -> {
+                dispatch(MoviesAction.DraftFiltersCleared)
             }
 
-            MoviesIntent.ApplyDraftFilters -> {
-                _state.update { current ->
-                    current.copy(appliedFilter = current.draftFilter)
-                }
+            MoviesIntent.ApplyFiltersClicked -> {
+                dispatch(MoviesAction.DraftFiltersApplied)
                 loadMovies()
+                sendEffect(MoviesEffect.CloseFilters)
+            }
+
+            is MoviesIntent.MovieClicked -> {
+                sendEffect(MoviesEffect.NavigateToDetails(intent.movieId))
             }
 
             is MoviesIntent.QueryChanged -> {
-                _state.update { current ->
-                    current.copy(
-                        draftFilter = current.draftFilter.copy(query = intent.query),
-                    )
-                }
+                dispatch(MoviesAction.QueryChanged(intent.query))
             }
 
             is MoviesIntent.GenreToggled -> {
-                _state.update { current ->
-                    current.copy(
-                        draftFilter = current.draftFilter.toggleGenre(intent.genre),
-                    )
-                }
+                dispatch(MoviesAction.GenreToggled(intent.genre))
             }
 
             is MoviesIntent.MinYearChanged -> {
-                _state.update { current ->
-                    current.copy(
-                        draftFilter = current.draftFilter.copy(
-                            minYearInput = intent.value.filter(Char::isDigit),
-                        ),
-                    )
-                }
+                dispatch(MoviesAction.MinYearChanged(intent.value))
             }
 
             is MoviesIntent.MaxYearChanged -> {
-                _state.update { current ->
-                    current.copy(
-                        draftFilter = current.draftFilter.copy(
-                            maxYearInput = intent.value.filter(Char::isDigit),
-                        ),
-                    )
-                }
+                dispatch(MoviesAction.MaxYearChanged(intent.value))
             }
 
             is MoviesIntent.MinRatingChanged -> {
-                _state.update { current ->
-                    current.copy(
-                        draftFilter = current.draftFilter.copy(minRating = intent.value),
-                    )
-                }
+                dispatch(MoviesAction.MinRatingChanged(intent.value))
             }
+        }
+    }
+
+    private fun dispatch(action: MoviesAction) {
+        _state.update { current ->
+            MoviesReducer.reduce(current, action)
+        }
+    }
+
+    private fun sendEffect(effect: MoviesEffect) {
+        viewModelScope.launch {
+            _effects.emit(effect)
         }
     }
 
@@ -120,9 +109,13 @@ class MoviesViewModel(
             runCatching {
                 repository.getGenres()
             }.onSuccess { genres ->
-                _state.update { current ->
-                    current.copy(availableGenres = genres)
-                }
+                dispatch(MoviesAction.GenresLoaded(genres))
+            }.onFailure { throwable ->
+                sendEffect(
+                    MoviesEffect.ShowMessage(
+                        throwable.message ?: "Something went wrong while loading genres.",
+                    ),
+                )
             }
         }
     }
@@ -130,9 +123,7 @@ class MoviesViewModel(
     private fun loadMovies() {
         loadMoviesJob?.cancel()
         loadMoviesJob = viewModelScope.launch {
-            _state.update { current ->
-                current.copy(listState = MoviesListContentState.Loading)
-            }
+            dispatch(MoviesAction.LoadingStarted)
 
             val currentState = state.value
             runCatching {
@@ -141,23 +132,13 @@ class MoviesViewModel(
                     sort = currentState.selectedSort,
                 )
             }.onSuccess { movies ->
-                _state.update { current ->
-                    current.copy(
-                        listState = if (movies.isEmpty()) {
-                            MoviesListContentState.Empty
-                        } else {
-                            MoviesListContentState.Success(movies)
-                        },
-                    )
-                }
+                dispatch(MoviesAction.MoviesLoaded(movies))
             }.onFailure { throwable ->
-                _state.update { current ->
-                    current.copy(
-                        listState = MoviesListContentState.Error(
-                            throwable.message ?: "Something went wrong while loading movies.",
-                        ),
-                    )
-                }
+                dispatch(
+                    MoviesAction.MoviesLoadingFailed(
+                        throwable.message ?: "Something went wrong while loading movies.",
+                    ),
+                )
             }
         }
     }

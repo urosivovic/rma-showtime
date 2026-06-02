@@ -3,8 +3,11 @@ package rs.edu.raf.rma.showtime.feature.details
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -18,6 +21,9 @@ class MovieDetailsViewModel(
     private val _state = MutableStateFlow(MovieDetailsScreenState())
     val state: StateFlow<MovieDetailsScreenState> = _state.asStateFlow()
 
+    private val _effects = MutableSharedFlow<MovieDetailsEffect>()
+    val effects: SharedFlow<MovieDetailsEffect> = _effects.asSharedFlow()
+
     private var loadJob: Job? = null
 
     init {
@@ -26,31 +32,41 @@ class MovieDetailsViewModel(
 
     fun onIntent(intent: MovieDetailsIntent) {
         when (intent) {
+            MovieDetailsIntent.BackClicked -> {
+                sendEffect(MovieDetailsEffect.NavigateBack)
+            }
+
             MovieDetailsIntent.RetryRequested -> loadMovie()
+        }
+    }
+
+    private fun dispatch(action: MovieDetailsAction) {
+        _state.update { current ->
+            MovieDetailsReducer.reduce(current, action)
+        }
+    }
+
+    private fun sendEffect(effect: MovieDetailsEffect) {
+        viewModelScope.launch {
+            _effects.emit(effect)
         }
     }
 
     private fun loadMovie() {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
-            _state.update { current ->
-                current.copy(contentState = MovieDetailsContentState.Loading)
-            }
+            dispatch(MovieDetailsAction.LoadingStarted)
 
             runCatching {
                 repository.getMovieDetails(movieId)
             }.onSuccess { movie ->
-                _state.update { current ->
-                    current.copy(contentState = MovieDetailsContentState.Success(movie))
-                }
+                dispatch(MovieDetailsAction.MovieLoaded(movie))
             }.onFailure { throwable ->
-                _state.update { current ->
-                    current.copy(
-                        contentState = MovieDetailsContentState.Error(
-                            throwable.message ?: "Something went wrong while loading movie details.",
-                        ),
-                    )
-                }
+                dispatch(
+                    MovieDetailsAction.MovieLoadingFailed(
+                        throwable.message ?: "Something went wrong while loading movie details.",
+                    ),
+                )
             }
         }
     }

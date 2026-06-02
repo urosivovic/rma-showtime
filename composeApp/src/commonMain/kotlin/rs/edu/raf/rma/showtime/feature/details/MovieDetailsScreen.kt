@@ -47,26 +47,35 @@ import rs.edu.raf.rma.showtime.core.model.MovieDetailsUiModel
 @Composable
 fun MovieDetailsScreen(
     state: MovieDetailsScreenState,
-    onBackClick: () -> Unit,
-    onRetryClick: () -> Unit,
+    onIntent: (MovieDetailsIntent) -> Unit,
 ) {
     when (val contentState = state.contentState) {
         MovieDetailsContentState.Loading -> {
-            MovieDetailsLoading(onBackClick = onBackClick)
+            MovieDetailsLoading(
+                onBackClick = {
+                    onIntent(MovieDetailsIntent.BackClicked)
+                },
+            )
         }
 
         is MovieDetailsContentState.Error -> {
             MovieDetailsError(
                 message = contentState.message,
-                onBackClick = onBackClick,
-                onRetryClick = onRetryClick,
+                onBackClick = {
+                    onIntent(MovieDetailsIntent.BackClicked)
+                },
+                onRetryClick = {
+                    onIntent(MovieDetailsIntent.RetryRequested)
+                },
             )
         }
 
         is MovieDetailsContentState.Success -> {
             MovieDetailsContent(
                 movie = contentState.movie,
-                onBackClick = onBackClick,
+                onBackClick = {
+                    onIntent(MovieDetailsIntent.BackClicked)
+                },
             )
         }
     }

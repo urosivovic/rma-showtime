@@ -59,8 +59,6 @@ import rs.edu.raf.rma.showtime.core.model.activeFiltersCount
 @Composable
 fun MoviesListScreen(
     state: MoviesScreenState,
-    onFilterClick: () -> Unit,
-    onMovieClick: (MovieCardUiModel) -> Unit,
     onIntent: (MoviesIntent) -> Unit,
 ) {
     Scaffold(
@@ -69,7 +67,9 @@ fun MoviesListScreen(
         topBar = {
             MoviesTopBar(
                 activeFiltersCount = state.appliedFilter.activeFiltersCount(),
-                onFilterClick = onFilterClick,
+                onFilterClick = {
+                    onIntent(MoviesIntent.FilterClicked)
+                },
             )
         },
     ) { paddingValues ->
@@ -99,7 +99,6 @@ fun MoviesListScreen(
                     paddingValues = paddingValues,
                     selectedSort = state.selectedSort,
                     movies = listState.movies,
-                    onMovieClick = onMovieClick,
                     onIntent = onIntent,
                 )
             }
@@ -112,7 +111,6 @@ private fun MoviesSuccessContent(
     paddingValues: PaddingValues,
     selectedSort: MovieSortOption,
     movies: List<MovieCardUiModel>,
-    onMovieClick: (MovieCardUiModel) -> Unit,
     onIntent: (MoviesIntent) -> Unit,
 ) {
     LazyColumn(
@@ -135,7 +133,9 @@ private fun MoviesSuccessContent(
         items(items = movies, key = { movie -> movie.imdbId }) { movie ->
             MovieCard(
                 movie = movie,
-                onClick = { onMovieClick(movie) },
+                onClick = {
+                    onIntent(MoviesIntent.MovieClicked(movie.imdbId))
+                },
             )
         }
     }

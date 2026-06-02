@@ -1,5 +1,6 @@
 package rs.edu.raf.rma.showtime.feature.details
 
+import rs.edu.raf.rma.showtime.core.mvi.UiAction
 import rs.edu.raf.rma.showtime.core.mvi.UiEffect
 import rs.edu.raf.rma.showtime.core.mvi.UiIntent
 import rs.edu.raf.rma.showtime.core.mvi.UiState
@@ -16,7 +17,17 @@ data class MovieDetailsScreenState(
 ) : UiState
 
 sealed interface MovieDetailsIntent : UiIntent {
+    data object BackClicked : MovieDetailsIntent
     data object RetryRequested : MovieDetailsIntent
 }
 
-sealed interface MovieDetailsEffect : UiEffect
+sealed interface MovieDetailsAction : UiAction {
+    data object LoadingStarted : MovieDetailsAction
+    data class MovieLoaded(val movie: MovieDetailsUiModel) : MovieDetailsAction
+    data class MovieLoadingFailed(val message: String) : MovieDetailsAction
+}
+
+sealed interface MovieDetailsEffect : UiEffect {
+    data object NavigateBack : MovieDetailsEffect
+    data class ShowMessage(val message: String) : MovieDetailsEffect
+}

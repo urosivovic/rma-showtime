@@ -4,4 +4,6 @@ interface UiState
 
 interface UiIntent
 
+interface UiAction
+
 interface UiEffect

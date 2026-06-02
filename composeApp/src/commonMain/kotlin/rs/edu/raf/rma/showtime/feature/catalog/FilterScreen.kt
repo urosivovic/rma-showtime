@@ -36,8 +36,6 @@ fun FilterScreen(
     state: MoviesFilterState,
     availableGenres: List<GenreUiModel>,
     onIntent: (MoviesIntent) -> Unit,
-    onBackClick: () -> Unit,
-    onApplyClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -52,7 +50,9 @@ fun FilterScreen(
             contentAlignment = Alignment.Center,
         ) {
             TextButton(
-                onClick = onBackClick,
+                onClick = {
+                    onIntent(MoviesIntent.DiscardFiltersClicked)
+                },
                 modifier = Modifier.align(Alignment.CenterStart),
             ) {
                 Text(text = "Back")
@@ -65,7 +65,9 @@ fun FilterScreen(
             )
 
             TextButton(
-                onClick = { onIntent(MoviesIntent.ClearDraftFilters) },
+                onClick = {
+                    onIntent(MoviesIntent.ClearDraftFiltersClicked)
+                },
                 modifier = Modifier.align(Alignment.CenterEnd),
             ) {
                 Text(text = "Clear All")
@@ -150,7 +152,9 @@ fun FilterScreen(
         }
 
         Button(
-            onClick = onApplyClick,
+            onClick = {
+                onIntent(MoviesIntent.ApplyFiltersClicked)
+            },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(text = "Apply Filters")
