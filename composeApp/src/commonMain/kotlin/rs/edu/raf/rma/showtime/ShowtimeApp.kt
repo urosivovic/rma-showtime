@@ -2,10 +2,13 @@ package rs.edu.raf.rma.showtime
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,6 +29,7 @@ import org.koin.dsl.koinConfiguration
 import rs.edu.raf.rma.showtime.feature.auth.AuthEffect
 import rs.edu.raf.rma.showtime.feature.auth.AuthGateLoadingScreen
 import rs.edu.raf.rma.showtime.feature.auth.AuthGateState
+import rs.edu.raf.rma.showtime.feature.auth.AuthIntent
 import rs.edu.raf.rma.showtime.feature.auth.AuthScreen
 import rs.edu.raf.rma.showtime.feature.auth.AuthViewModel
 import rs.edu.raf.rma.showtime.feature.details.MovieDetailsEffect
@@ -37,6 +41,7 @@ import rs.edu.raf.rma.showtime.feature.catalog.MoviesEffect
 import rs.edu.raf.rma.showtime.feature.catalog.MoviesListScreen
 import rs.edu.raf.rma.showtime.feature.catalog.MoviesViewModel
 import rs.edu.raf.rma.showtime.core.navigation.ShowtimeRoute
+import androidx.compose.ui.unit.dp
 
 private val ShowtimeBackground = Color(0xFF131313)
 private val ShowtimeSurface = Color(0xFF22213A)
@@ -100,6 +105,9 @@ fun ShowtimeApp() {
                         is AuthGateState.Authenticated -> {
                             ShowtimeMainContent(
                                 snackbarHostState = snackbarHostState,
+                                onLogout = {
+                                    authViewModel.onIntent(AuthIntent.LogoutRequested)
+                                },
                             )
                         }
                     }
@@ -117,6 +125,7 @@ fun ShowtimeApp() {
 @Composable
 private fun ShowtimeMainContent(
     snackbarHostState: SnackbarHostState,
+    onLogout: () -> Unit,
 ) {
     val navController = rememberNavController()
     val moviesViewModel: MoviesViewModel = koinViewModel()
@@ -148,53 +157,64 @@ private fun ShowtimeMainContent(
         }
     }
 
-    NavHost(
-        navController = navController,
-        startDestination = ShowtimeRoute.Movies,
-    ) {
-        composable(ShowtimeRoute.Movies) {
-            MoviesListScreen(
-                state = moviesState,
-                onIntent = moviesViewModel::onIntent,
-            )
-        }
+    Box(modifier = Modifier.fillMaxSize()) {
+        NavHost(
+            navController = navController,
+            startDestination = ShowtimeRoute.Movies,
+        ) {
+            composable(ShowtimeRoute.Movies) {
+                MoviesListScreen(
+                    state = moviesState,
+                    onIntent = moviesViewModel::onIntent,
+                )
+            }
 
-        composable(ShowtimeRoute.Filter) {
-            FilterScreen(
-                state = moviesState.draftFilter,
-                availableGenres = moviesState.availableGenres,
-                onIntent = moviesViewModel::onIntent,
-            )
-        }
+            composable(ShowtimeRoute.Filter) {
+                FilterScreen(
+                    state = moviesState.draftFilter,
+                    availableGenres = moviesState.availableGenres,
+                    onIntent = moviesViewModel::onIntent,
+                )
+            }
 
-        composable(ShowtimeRoute.MovieDetailsPattern) { backStackEntry ->
-            val movieId = backStackEntry.arguments?.read {
-                getStringOrNull(ShowtimeRoute.MovieIdArg)
-            }.orEmpty()
-            val detailsViewModel: MovieDetailsViewModel = koinViewModel(
-                key = "movie-$movieId",
-                parameters = { parametersOf(movieId) },
-            )
-            val detailsState by detailsViewModel.state.collectAsState()
+            composable(ShowtimeRoute.MovieDetailsPattern) { backStackEntry ->
+                val movieId = backStackEntry.arguments?.read {
+                    getStringOrNull(ShowtimeRoute.MovieIdArg)
+                }.orEmpty()
+                val detailsViewModel: MovieDetailsViewModel = koinViewModel(
+                    key = "movie-$movieId",
+                    parameters = { parametersOf(movieId) },
+                )
+                val detailsState by detailsViewModel.state.collectAsState()
 
-            LaunchedEffect(detailsViewModel) {
-                detailsViewModel.effects.collect { effect ->
-                    when (effect) {
-                        MovieDetailsEffect.NavigateBack -> {
-                            navController.popBackStack()
-                        }
+                LaunchedEffect(detailsViewModel) {
+                    detailsViewModel.effects.collect { effect ->
+                        when (effect) {
+                            MovieDetailsEffect.NavigateBack -> {
+                                navController.popBackStack()
+                            }
 
-                        is MovieDetailsEffect.ShowMessage -> {
-                            snackbarHostState.showSnackbar(effect.message)
+                            is MovieDetailsEffect.ShowMessage -> {
+                                snackbarHostState.showSnackbar(effect.message)
+                            }
                         }
                     }
                 }
-            }
 
-            MovieDetailsScreen(
-                state = detailsState,
-                onIntent = detailsViewModel::onIntent,
-            )
+                MovieDetailsScreen(
+                    state = detailsState,
+                    onIntent = detailsViewModel::onIntent,
+                )
+            }
+        }
+
+        TextButton(
+            onClick = onLogout,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(8.dp),
+        ) {
+            Text("Logout")
         }
     }
 }
