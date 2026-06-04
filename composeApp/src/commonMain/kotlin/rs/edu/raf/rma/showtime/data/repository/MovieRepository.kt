@@ -1,7 +1,10 @@
 package rs.edu.raf.rma.showtime.data.repository
 
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -79,6 +82,10 @@ class MovieRepositoryImpl(
 }
 
 fun createShowtimeHttpClient(): HttpClient = HttpClient {
+    defaultRequest {
+        contentType(ContentType.Application.Json)
+    }
+
     install(ContentNegotiation) {
         json(
             Json {
