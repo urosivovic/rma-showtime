@@ -23,6 +23,11 @@ import org.koin.compose.KoinApplication
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import org.koin.dsl.koinConfiguration
+import rs.edu.raf.rma.showtime.feature.auth.AuthEffect
+import rs.edu.raf.rma.showtime.feature.auth.AuthGateLoadingScreen
+import rs.edu.raf.rma.showtime.feature.auth.AuthGateState
+import rs.edu.raf.rma.showtime.feature.auth.AuthScreen
+import rs.edu.raf.rma.showtime.feature.auth.AuthViewModel
 import rs.edu.raf.rma.showtime.feature.details.MovieDetailsEffect
 import rs.edu.raf.rma.showtime.feature.details.MovieDetailsScreen
 import rs.edu.raf.rma.showtime.feature.details.MovieDetailsViewModel
@@ -61,31 +66,14 @@ fun ShowtimeApp() {
             modules(showtimeModule)
         },
     ) {
-        val navController = rememberNavController()
-        val moviesViewModel: MoviesViewModel = koinViewModel()
-        val moviesState by moviesViewModel.state.collectAsState()
+        val authViewModel: AuthViewModel = koinViewModel()
+        val authState by authViewModel.state.collectAsState()
         val snackbarHostState = remember { SnackbarHostState() }
 
-        LaunchedEffect(moviesViewModel) {
-            moviesViewModel.effects.collect { effect ->
+        LaunchedEffect(authViewModel) {
+            authViewModel.effects.collect { effect ->
                 when (effect) {
-                    MoviesEffect.NavigateToFilters -> {
-                        navController.navigate(ShowtimeRoute.Filter) {
-                            launchSingleTop = true
-                        }
-                    }
-
-                    MoviesEffect.CloseFilters -> {
-                        navController.popBackStack()
-                    }
-
-                    is MoviesEffect.NavigateToDetails -> {
-                        navController.navigate(ShowtimeRoute.movieDetails(effect.movieId)) {
-                            launchSingleTop = true
-                        }
-                    }
-
-                    is MoviesEffect.ShowMessage -> {
+                    is AuthEffect.ShowMessage -> {
                         snackbarHostState.showSnackbar(effect.message)
                     }
                 }
@@ -97,52 +85,21 @@ fun ShowtimeApp() {
                 color = MaterialTheme.colorScheme.background,
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    NavHost(
-                        navController = navController,
-                        startDestination = ShowtimeRoute.Movies,
-                    ) {
-                        composable(ShowtimeRoute.Movies) {
-                            MoviesListScreen(
-                                state = moviesState,
-                                onIntent = moviesViewModel::onIntent,
+                    when (authState.gateState) {
+                        AuthGateState.Checking -> {
+                            AuthGateLoadingScreen()
+                        }
+
+                        AuthGateState.Unauthenticated -> {
+                            AuthScreen(
+                                state = authState,
+                                onIntent = authViewModel::onIntent,
                             )
                         }
 
-                        composable(ShowtimeRoute.Filter) {
-                            FilterScreen(
-                                state = moviesState.draftFilter,
-                                availableGenres = moviesState.availableGenres,
-                                onIntent = moviesViewModel::onIntent,
-                            )
-                        }
-
-                        composable(ShowtimeRoute.MovieDetailsPattern) { backStackEntry ->
-                            val movieId = backStackEntry.arguments?.read {
-                                getStringOrNull(ShowtimeRoute.MovieIdArg)
-                            }.orEmpty()
-                            val detailsViewModel: MovieDetailsViewModel = koinViewModel(
-                                key = "movie-$movieId",
-                                parameters = { parametersOf(movieId) },
-                            )
-                            val detailsState by detailsViewModel.state.collectAsState()
-
-                            LaunchedEffect(detailsViewModel) {
-                                detailsViewModel.effects.collect { effect ->
-                                    when (effect) {
-                                        MovieDetailsEffect.NavigateBack -> {
-                                            navController.popBackStack()
-                                        }
-
-                                        is MovieDetailsEffect.ShowMessage -> {
-                                            snackbarHostState.showSnackbar(effect.message)
-                                        }
-                                    }
-                                }
-                            }
-
-                            MovieDetailsScreen(
-                                state = detailsState,
-                                onIntent = detailsViewModel::onIntent,
+                        is AuthGateState.Authenticated -> {
+                            ShowtimeMainContent(
+                                snackbarHostState = snackbarHostState,
                             )
                         }
                     }
@@ -153,6 +110,91 @@ fun ShowtimeApp() {
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ShowtimeMainContent(
+    snackbarHostState: SnackbarHostState,
+) {
+    val navController = rememberNavController()
+    val moviesViewModel: MoviesViewModel = koinViewModel()
+    val moviesState by moviesViewModel.state.collectAsState()
+
+    LaunchedEffect(moviesViewModel) {
+        moviesViewModel.effects.collect { effect ->
+            when (effect) {
+                MoviesEffect.NavigateToFilters -> {
+                    navController.navigate(ShowtimeRoute.Filter) {
+                        launchSingleTop = true
+                    }
+                }
+
+                MoviesEffect.CloseFilters -> {
+                    navController.popBackStack()
+                }
+
+                is MoviesEffect.NavigateToDetails -> {
+                    navController.navigate(ShowtimeRoute.movieDetails(effect.movieId)) {
+                        launchSingleTop = true
+                    }
+                }
+
+                is MoviesEffect.ShowMessage -> {
+                    snackbarHostState.showSnackbar(effect.message)
+                }
+            }
+        }
+    }
+
+    NavHost(
+        navController = navController,
+        startDestination = ShowtimeRoute.Movies,
+    ) {
+        composable(ShowtimeRoute.Movies) {
+            MoviesListScreen(
+                state = moviesState,
+                onIntent = moviesViewModel::onIntent,
+            )
+        }
+
+        composable(ShowtimeRoute.Filter) {
+            FilterScreen(
+                state = moviesState.draftFilter,
+                availableGenres = moviesState.availableGenres,
+                onIntent = moviesViewModel::onIntent,
+            )
+        }
+
+        composable(ShowtimeRoute.MovieDetailsPattern) { backStackEntry ->
+            val movieId = backStackEntry.arguments?.read {
+                getStringOrNull(ShowtimeRoute.MovieIdArg)
+            }.orEmpty()
+            val detailsViewModel: MovieDetailsViewModel = koinViewModel(
+                key = "movie-$movieId",
+                parameters = { parametersOf(movieId) },
+            )
+            val detailsState by detailsViewModel.state.collectAsState()
+
+            LaunchedEffect(detailsViewModel) {
+                detailsViewModel.effects.collect { effect ->
+                    when (effect) {
+                        MovieDetailsEffect.NavigateBack -> {
+                            navController.popBackStack()
+                        }
+
+                        is MovieDetailsEffect.ShowMessage -> {
+                            snackbarHostState.showSnackbar(effect.message)
+                        }
+                    }
+                }
+            }
+
+            MovieDetailsScreen(
+                state = detailsState,
+                onIntent = detailsViewModel::onIntent,
+            )
         }
     }
 }

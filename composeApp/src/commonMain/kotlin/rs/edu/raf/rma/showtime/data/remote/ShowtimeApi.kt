@@ -1,10 +1,28 @@
 package rs.edu.raf.rma.showtime.data.remote
 
+import de.jensklingenberg.ktorfit.http.Body
 import de.jensklingenberg.ktorfit.http.GET
+import de.jensklingenberg.ktorfit.http.Header
 import de.jensklingenberg.ktorfit.http.Path
+import de.jensklingenberg.ktorfit.http.POST
 import de.jensklingenberg.ktorfit.http.Query
 
 interface ShowtimeApi {
+
+    @POST("auth/signup")
+    suspend fun signup(
+        @Body body: SignupRequestDto,
+    ): AuthResponseDto
+
+    @POST("auth/login")
+    suspend fun login(
+        @Body body: LoginRequestDto,
+    ): AuthResponseDto
+
+    @GET("me")
+    suspend fun getMe(
+        @Header("Authorization") authorization: String,
+    ): UserDto
 
     @GET("movies")
     suspend fun getMovies(

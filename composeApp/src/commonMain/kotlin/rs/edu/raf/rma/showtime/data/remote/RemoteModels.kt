@@ -1,6 +1,8 @@
 package rs.edu.raf.rma.showtime.data.remote
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import rs.edu.raf.rma.showtime.core.auth.AuthUser
 import rs.edu.raf.rma.showtime.core.model.GenreUiModel
 import rs.edu.raf.rma.showtime.core.model.MovieCardUiModel
 import rs.edu.raf.rma.showtime.core.model.MovieDetailsUiModel
@@ -87,6 +89,37 @@ data class ConfigEntryDto(
     val value: String,
 )
 
+@Serializable
+data class SignupRequestDto(
+    @SerialName("full_name")
+    val fullName: String,
+    val username: String,
+    val password: String,
+)
+
+@Serializable
+data class LoginRequestDto(
+    val username: String,
+    val password: String,
+)
+
+@Serializable
+data class AuthResponseDto(
+    @SerialName("access_token")
+    val accessToken: String,
+    @SerialName("expires_in")
+    val expiresIn: Long,
+    val user: UserDto,
+)
+
+@Serializable
+data class UserDto(
+    val id: Int,
+    val username: String,
+    @SerialName("full_name")
+    val fullName: String,
+)
+
 data class ImageConfig(
     val imageBaseUrl: String,
     val posterSizes: List<String>,
@@ -96,6 +129,12 @@ data class ImageConfig(
 fun GenreDto.toUiModel(): GenreUiModel = GenreUiModel(
     id = id,
     name = name,
+)
+
+fun UserDto.toDomain(): AuthUser = AuthUser(
+    id = id,
+    username = username,
+    fullName = fullName,
 )
 
 fun MovieListItemDto.toUiModel(imageConfig: ImageConfig): MovieCardUiModel = MovieCardUiModel(
