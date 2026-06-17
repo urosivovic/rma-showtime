@@ -82,6 +82,8 @@ class MovieRepositoryImpl(
 }
 
 fun createShowtimeHttpClient(): HttpClient = HttpClient {
+    expectSuccess = true
+
     defaultRequest {
         contentType(ContentType.Application.Json)
     }
