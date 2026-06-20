@@ -17,3 +17,12 @@ fun Throwable.toAuthMessage(): String {
         else -> message ?: "Something went wrong. Please try again."
     }
 }
+
+fun Throwable.toPublicMessage(fallback: String): String {
+    val rawMessage = message ?: return fallback
+    val isInternalSerializationError = rawMessage.contains("kotlinx/serialization") ||
+        rawMessage.contains("Unable to find method") ||
+        rawMessage.contains("Illegal input")
+
+    return if (isInternalSerializationError) fallback else rawMessage
+}

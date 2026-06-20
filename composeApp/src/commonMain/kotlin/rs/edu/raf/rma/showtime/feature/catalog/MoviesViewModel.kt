@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import rs.edu.raf.rma.showtime.core.network.toPublicMessage
 import rs.edu.raf.rma.showtime.data.repository.MovieRepository
 
 class MoviesViewModel(
@@ -113,7 +114,7 @@ class MoviesViewModel(
             }.onFailure { throwable ->
                 sendEffect(
                     MoviesEffect.ShowMessage(
-                        throwable.message ?: "Something went wrong while loading genres.",
+                        throwable.toPublicMessage("Something went wrong while loading genres."),
                     ),
                 )
             }
@@ -136,7 +137,7 @@ class MoviesViewModel(
             }.onFailure { throwable ->
                 dispatch(
                     MoviesAction.MoviesLoadingFailed(
-                        throwable.message ?: "Something went wrong while loading movies.",
+                        throwable.toPublicMessage("Something went wrong while loading movies."),
                     ),
                 )
             }
